@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>MIMI Pipeline — Weekly Research Update</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #f0f2f5;
+    padding: 32px 24px 60px;
+    min-width: 1100px;
+  }
+
+  /* ── Top bar ────────────────────────────────────────────── */
+  .topbar {
+    background: #1a1a2e;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.75rem;
+    text-align: right;
+    padding: 8px 28px;
+    margin: -32px -24px 28px;
+    letter-spacing: 0.3px;
+  }
+  .topbar strong { color: #fff; }
+
+  /* ── Research update card ────────────────────────────────── */
+  .update-card {
+    max-width: 1060px;
+    margin: 0 auto 36px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .update-card-header {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .update-card-header h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    flex: 1;
+  }
+  .update-card-header .date-badge {
+    background: rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  .update-body {
+    padding: 22px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .update-section h3 {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #888;
+    margin-bottom: 10px;
+  }
+  .update-section p {
+    font-size: 0.84rem;
+    color: #333;
+    line-height: 1.6;
+  }
+  .update-section ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.84rem;
+    color: #333;
+    line-height: 1.8;
+  }
+  .status-pills {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+  }
+  .pill-done    { background: #e8f5e9; color: #1b5e20; }
+  .pill-next    { background: #e3f2fd; color: #0d47a1; }
+  .pill-planned { background: #fbe9e7; color: #bf360c; }
+  .pill-complex { background: #f3e5f5; color: #4a148c; }
+  .pill-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .p-d { background: #2e7d32; }
+  .p-n { background: #1565c0; }
+  .p-p { background: #e65100; }
+  .p-c { background: #6a1b9a; }
+  .pill strong { font-weight: 600; }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    letter-spacing: -0.3px;
+  }
+  .header p {
+    margin-top: 6px;
+    color: #555;
+    font-size: 0.9rem;
+  }
+
+  /* ── Legend ─────────────────────────────────────────────── */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+  }
+  .leg {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.82rem;
+    color: #444;
+  }
+  .leg-dot {
+    width: 13px; height: 13px;
+    border-radius: 3px;
+  }
+  .ld-done    { background: #2e7d32; }
+  .ld-next    { background: #1565c0; }
+  .ld-planned { background: #e65100; }
+  .ld-complex { background: #6a1b9a; }
+
+  /* ── Pipeline wrapper ────────────────────────────────────── */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    align-items: center;
+  }
+
+  /* ── Stage row ───────────────────────────────────────────── */
+  .stage-row {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    max-width: 1060px;
+    gap: 0;
+  }
+
+  /* ── Stage card ──────────────────────────────────────────── */
+  .stage {
+    flex: 1;
+    border-radius: 12px;
+    padding: 18px 20px 20px;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    min-width: 0;
+  }
+
+  /* Status colours */
+  .done    { background: #1b5e20; }
+  .next    { background: #0d47a1; }
+  .planned { background: #bf360c; }
+  .complex { background: #4a148c; }
+
+  /* ── Stage header ────────────────────────────────────────── */
+  .stage-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .stage-num {
+    background: rgba(255,255,255,0.22);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 50%;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+  }
+  .stage-icon {
+    font-size: 1.55rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .stage-title {
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    line-height: 1.25;
+  }
+  .stage-badge {
+    margin-left: auto;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    background: rgba(255,255,255,0.18);
+    border-radius: 20px;
+    padding: 2px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Item chips ──────────────────────────────────────────── */
+  .items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .item {
+    background: rgba(255,255,255,0.13);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 7px;
+    padding: 7px 10px;
+    color: #fff;
+    font-size: 0.74rem;
+    line-height: 1.4;
+  }
+  .item strong {
+    display: block;
+    font-size: 0.76rem;
+    margin-bottom: 1px;
+  }
+  .item span {
+    opacity: 0.8;
+    font-size: 0.7rem;
+  }
+  .item.warn strong::after {
+    content: " ⚠";
+    opacity: 0.75;
+  }
+
+  /* ── Connector (vertical arrow between rows) ──────────────── */
+  .connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    width: 100%;
+    max-width: 1060px;
+    position: relative;
+  }
+  .connector::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: 0;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 100%;
+    background: #9e9e9e;
+  }
+  .connector-arrow {
+    background: #fff;
+    border: 2px solid #9e9e9e;
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem;
+    color: #555;
+    z-index: 1;
+    position: relative;
+  }
+
+  /* ── Wide 2-column row ───────────────────────────────────── */
+  .stage-row-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+    max-width: 1060px;
+  }
+  /* middle label between the two columns */
+  .col-label {
+    display: none;
+  }
+
+  /* ── Split connector ─────────────────────────────────────── */
+  .connector-split {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    width: 100%;
+    max-width: 1060px;
+    position: relative;
+  }
+  .connector-split svg {
+    width: 100%;
+    height: 40px;
+  }
+
+  /* ── Full-width single stage ─────────────────────────────── */
+  .stage-full {
+    width: 100%;
+    max-width: 1060px;
+  }
+
+  /* ── Decision diamond ────────────────────────────────────── */
+  .decision-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.28);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin-top: 4px;
+    letter-spacing: 0.4px;
+  }
+
+  /* ── Final score callout ─────────────────────────────────── */
+  .score-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .score-chip {
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    padding: 10px 8px;
+    text-align: center;
+    color: #fff;
+  }
+  .score-chip .sc-label {
+    font-size: 0.64rem;
+    opacity: 0.8;
+    display: block;
+    margin-bottom: 3px;
+  }
+  .score-chip .sc-name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    display: block;
+  }
+
+  /* ── Footer note ────────────────────────────────────────── */
+  .footnote {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 0.78rem;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  PhD Research Update &nbsp;·&nbsp; <strong>Nonjabulo Mbhele</strong> &nbsp;·&nbsp; University of Cape Town &nbsp;·&nbsp; Week of 2 May 2026
+</div>
+
+<!-- ── Research update card ───────────────────────────────────────────── -->
+<div class="update-card">
+  <div class="update-card-header">
+    <h2>📋 &nbsp;Weekly Research Update — MIMI Data Pipeline</h2>
+    <div class="date-badge">2 May 2026</div>
+  </div>
+  <div class="update-body">
+
+    <div class="update-section">
+      <h3>What this diagram shows</h3>
+      <p>
+        This is the full data pipeline for the <strong>Municipal Infrastructure Management Index (MIMI)</strong>
+        — a composite index I am developing as part of my PhD at UCT to assess how efficiently and effectively
+        South African Water Services Authorities manage infrastructure.
+      </p>
+      <p style="margin-top:10px;">
+        The pipeline starts from source documents stored on SharePoint (Annual Financial Statements, MuSSA feedback
+        reports, AGSA audit outcomes, Blue &amp; Green Drop reports) and ends with a scored, validated index for
+        each municipality per year, disaggregated into two sub-indices:
+        <strong>IMEI</strong> (Infrastructure Management Efficiency Index) and
+        <strong>IMFI</strong> (Infrastructure Management Financial Index).
+      </p>
+
+      <h3 style="margin-top:18px;">What has been completed this week</h3>
+      <ul>
+        <li>All source documents uploaded to SharePoint with full metadata tagging</li>
+        <li>SharePoint metadata scripts built and tested (AFS, MuSSA, MFMA Annexure)</li>
+        <li>Duplicate MuSSA files cleaned from local store (8 removed, 650 remain)</li>
+        <li>Full pipeline architecture designed and documented (this diagram)</li>
+      </ul>
+    </div>
+
+    <div class="update-section">
+      <h3>Pipeline status at a glance</h3>
+      <div class="status-pills">
+        <div class="pill pill-done">
+          <div class="pill-dot p-d"></div>
+          <div><strong>Stage 0 — SharePoint</strong> &nbsp; All documents uploaded &amp; metadata tagged</div>
+        </div>
+        <div class="pill pill-next">
+          <div class="pill-dot p-n"></div>
+          <div><strong>Stage 1 — Extraction</strong> &nbsp; AFS extractor done · MuSSA extractor in progress</div>
+        </div>
+        <div class="pill pill-next">
+          <div class="pill-dot p-n"></div>
+          <div><strong>Stage 2 — Database</strong> &nbsp; Schema designed · population next</div>
+        </div>
+        <div class="pill pill-next">
+          <div class="pill-dot p-n"></div>
+          <div><strong>Stage 3 — Indicators</strong> &nbsp; 12 of 25 implemented · rest pending extractors</div>
+        </div>
+        <div class="pill pill-planned">
+          <div class="pill-dot p-p"></div>
+          <div><strong>Stages 4–6 — Normalisation · DEA · Weighting</strong> &nbsp; Planned</div>
+        </div>
+        <div class="pill pill-complex">
+          <div class="pill-dot p-c"></div>
+          <div><strong>Stages 7–8 — Sensitivity &amp; Validation</strong> &nbsp; Needs design decisions</div>
+        </div>
+        <div class="pill pill-planned">
+          <div class="pill-dot p-p"></div>
+          <div><strong>Stage 9 — Scores &amp; Dashboard</strong> &nbsp; Final deliverable</div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:18px;">Open decisions / items for discussion</h3>
+      <ul>
+        <li>Normalisation method: min-max vs z-score vs percentile rank</li>
+        <li>Handling of missing data: exclusion vs imputation</li>
+        <li>DEA model inputs/outputs specification</li>
+        <li>Indicator weighting approach: equal vs expert vs PCA</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<div class="header">
+  <h1>MIMI Pipeline — Full Architecture</h1>
+  <p>Municipal Infrastructure Management Index &nbsp;|&nbsp; From SharePoint documents to final index scores</p>
+</div>
+
+<div class="legend">
+  <div class="leg"><div class="leg-dot ld-done"></div> Done</div>
+  <div class="leg"><div class="leg-dot ld-next"></div> Next / In progress</div>
+  <div class="leg"><div class="leg-dot ld-planned"></div> Planned</div>
+  <div class="leg"><div class="leg-dot ld-complex"></div> Complex — needs design decision</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="pipeline">
+
+  <!-- STAGE 0 ─ SharePoint -->
+  <div class="stage-full">
+    <div class="stage done">
+      <div class="stage-head">
+        <div class="stage-num">0</div>
+        <div class="stage-icon">☁️</div>
+        <div class="stage-title">Stage 0 — SharePoint Document Store</div>
+        <div class="stage-badge">✅ DONE</div>
+      </div>
+      <div class="items" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+        <div class="item">
+          <strong>AFS PDFs</strong>
+          <span>Annual Financial Statements<br>per municipality × year<br>Metadata tagged ✓</span>
+        </div>
+        <div class="item">
+          <strong>MuSSA PDFs</strong>
+          <span>Feedback reports<br>per municipality × year<br>Metadata tagged ✓</span>
+        </div>
+        <div class="item">
+          <strong>MFMA Audit Excel</strong>
+          <span>Annexure 3 — audit opinions<br>All municipalities, 5 years<br>Metadata tagged ✓</span>
+        </div>
+        <div class="item">
+          <strong>Blue Drop PDFs</strong>
+          <span>DWS water quality scores<br>per municipality × year<br>Metadata tagged ✓</span>
+        </div>
+        <div class="item">
+          <strong>Green Drop PDFs</strong>
+          <span>DWS wastewater scores<br>per municipality × year<br>Metadata tagged ✓</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- arrow -->
+  <div class="connector"><div class="connector-arrow">↓</div></div>
+
+  <!-- STAGE 1 ─ Download & Extract -->
+  <div class="stage-full">
+    <div class="stage next">
+      <div class="stage-head">
+        <div class="stage-num">1</div>
+        <div class="stage-icon">📥</div>
+        <div class="stage-title">Stage 1 — Download &amp; Extract</div>
+        <div class="stage-badge">🔵 NEXT</div>
+      </div>
+      <div class="items" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <div class="item">
+          <strong>downloader.py</strong>
+          <span>Downloads all files from SharePoint<br>via Microsoft Graph API<br>Saves locally by type</span>
+        </div>
+        <div class="item">
+          <strong>financial_structuring.py</strong>
+          <span>Parses AFS PDFs<br>Extracts 18 financial line items<br>(revenue, expenses, assets…)</span>
+        </div>
+        <div class="item warn">
+          <strong>mussa_extractor.py</strong>
+          <span>Parses MuSSA PDFs<br>Extracts section scores, vulnerability,<br>WSS planning, O&M, finance scores</span>
+        </div>
+        <div class="item">
+          <strong>benchmark_extractor.py</strong>
+          <span>Parses MFMA Excel<br>Extracts audit opinion<br>per municipality × year</span>
+        </div>
+        <div class="item">
+          <strong>blue_drop_extractor.py</strong>
+          <span>Parses Blue Drop PDFs<br>Extracts Blue Drop score<br>per municipality × year</span>
+        </div>
+        <div class="item warn">
+          <strong>Stats SA data</strong>
+          <span>Household sanitation access %<br>Data still pending<br>Manual upload expected</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- arrow -->
+  <div class="connector"><div class="connector-arrow">↓</div></div>
+
+  <!-- STAGE 2 ─ Database -->
+  <div class="stage-full">
+    <div class="stage next">
+      <div class="stage-head">
+        <div class="stage-num">2</div>
+        <div class="stage-icon">🗄️</div>
+        <div class="stage-title">Stage 2 — Store in SQLite Database (mimi_master.db)</div>
+        <div class="stage-badge">🔵 NEXT</div>
+      </div>
+      <div class="items" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+        <div class="item">
+          <strong>financial_line_items</strong>
+          <span>municipality | year<br>line_item | value<br>(18 items × n municipalities × years)</span>
+        </div>
+        <div class="item">
+          <strong>indicators</strong>
+          <span>municipality | year<br>indicator_name | value<br>(raw, pre-normalisation)</span>
+        </div>
+        <div class="item">
+          <strong>audit_outcomes</strong>
+          <span>municipality | year<br>audit_opinion<br>(from MFMA Annexure)</span>
+        </div>
+        <div class="item">
+          <strong>Validation checks</strong>
+          <span>Expected row counts verified<br>Nulls flagged<br>Implausible values flagged</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- arrow -->
+  <div class="connector"><div class="connector-arrow">↓</div></div>
+
+  <!-- STAGE 3 ─ Indicators -->
+  <div class="stage-full">
+    <div class="stage next">
+      <div class="stage-head">
+        <div class="stage-num">3</div>
+        <div class="stage-icon">📐</div>
+        <div class="stage-title">Stage 3 — Indicator Calculation (25 indicators total)</div>
+        <div class="stage-badge">🔵 NEXT</div>
+      </div>
+      <div class="items" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="item">
+          <strong>IMEI Indicators (13) — Efficiency</strong>
+          <span>From AFS: CBIR, capex_to_total_exp, repairs_maint_pct_ppe,<br>
+          non_revenue_water_pct, electricity_loss_pct, renewal_intensity_ratio,<br>
+          capital_underspending_rate + 6 more<br>
+          <em>12 of 13 implemented ✓ | 1 needs extractor</em></span>
+        </div>
+        <div class="item warn">
+          <strong>IMFI Indicators (12) — Effectiveness</strong>
+          <span>From AFS + MuSSA + AGSA + DWS + Stats SA:<br>
+          audit_outcome_infra, mussa_vulnerability_score,<br>
+          blue_drop_score, green_drop_score, hh_sanitation_access,<br>
+          mussa_wss_planning, mussa_om_score, mussa_finance_score<br>
+          <em>Needs extractors above to be completed</em></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- arrow -->
+  <div class="connector"><div class="connector-arrow">↓</div></div>
+
+  <!-- STAGE 4 ─ Normalisation -->
+  <div class="stage-full">
+    <div class="stage planned">
+      <div class="stage-head">
+        <div class="stage-num">4</div>
+        <div class="stage-icon">⚖️</div>
+        <div class="stage-title">Stage 4 — Normalisation</div>
+        <div class="stage-badge">🟠 PLANNED</div>
+      </div>
+      <div class="items" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+        <div class="item">
+          <strong>Direction adjustment</strong>
+          <span>Flip "lower = better" indicators<br>(NRW%, electricity losses)<br>So high score always = better</span>
+        </div>
+        <div class="item">
+          <strong>Handle missing data</strong>
+          <span>Exclude municipality<br>— OR — pairwise deletion<br>— OR — mean imputation
+          <div class="decision-badge">⚠ Decision needed</div></span>
+        </div>
+        <div class="item">
+          <strong>Scale to 0–1</strong>
+          <span>Min-max: (x − min)/(max − min)<br>— OR — z-score<br>— OR — percentile rank
+          <div class="decision-badge">⚠ Decision needed</div></span>
+        </div>
+        <div class="item">
+          <strong>normalised_indicators table</strong>
+          <span>Stores normalised values<br>in mimi_master.db<br>municipality | year | indicator | score</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- split arrow to DEA + Weighting -->
+  <div class="connector-split">
+    <svg viewBox="0 0 1060 40" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="530" y1="0" x2="530" y2="18" stroke="#9e9e9e" stroke-width="2"/>
+      <line x1="265" y1="18" x2="795" y2="18" stroke="#9e9e9e" stroke-width="2"/>
+      <line x1="265" y1="18" x2="265" y2="40" stroke="#9e9e9e" stroke-width="2"/>
+      <line x1="795" y1="18" x2="795" y2="40" stroke="#9e9e9e" stroke-width="2"/>
+    </svg>
+  </div>
+
+  <!-- STAGE 5 + 6 side by side -->
+  <div class="stage-row-2col">
+
+    <!-- STAGE 5 ─ DEA -->
+    <div class="stage planned">
+      <div class="stage-head">
+        <div class="stage-num">5</div>
+        <div class="stage-icon">🏗️</div>
+        <div class="stage-title">Stage 5 — DEA Efficiency Scoring</div>
+        <div class="stage-badge">🟠 PLANNED</div>
+      </div>
+      <div class="items">
+        <div class="item">
+          <strong>Specify DEA model</strong>
+          <span>Inputs: expenditure, staff count, asset base<br>
+          Outputs: services delivered, quality scores
+          <div class="decision-badge">⚠ Design decision needed</div></span>
+        </div>
+        <div class="item">
+          <strong>Run DEA (Python)</strong>
+          <span>pyDEA or scipy library<br>
+          Output: efficiency score 0–1<br>per municipality × year</span>
+        </div>
+        <div class="item">
+          <strong>dea_results table</strong>
+          <span>Stores DEA scores in mimi_master.db<br>
+          Integrates as IMEI indicator<br>or standalone efficiency score</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STAGE 6 ─ Weighting -->
+    <div class="stage planned">
+      <div class="stage-head">
+        <div class="stage-num">6</div>
+        <div class="stage-icon">🧮</div>
+        <div class="stage-title">Stage 6 — Weighting &amp; Aggregation</div>
+        <div class="stage-badge">🟠 PLANNED</div>
+      </div>
+      <div class="items">
+        <div class="item">
+          <strong>Apply weights</strong>
+          <span>Equal weights — OR — expert weights<br>— OR — PCA-derived weights
+          <div class="decision-badge">⚠ Decision needed</div></span>
+        </div>
+        <div class="item">
+          <strong>Lifecycle stage scores</strong>
+          <span>Aggregate to:<br>Planning | Construction | O&amp;M | Renewal</span>
+        </div>
+        <div class="item">
+          <strong>Sub-index aggregation</strong>
+          <span>Stage scores → IMEI (Efficiency Index)<br>Stage scores → IMFI (Financial Index)</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- merge connector -->
+  <div class="connector-split">
+    <svg viewBox="0 0 1060 40" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="265" y1="0" x2="265" y2="22" stroke="#9e9e9e" stroke-width="2"/>
+      <line x1="795" y1="0" x2="795" y2="22" stroke="#9e9e9e" stroke-width="2"/>
+      <line x1="265" y1="22" x2="795" y2="22" stroke="#9e9e9e" stroke-width="2"/>
+      <line x1="530" y1="22" x2="530" y2="40" stroke="#9e9e9e" stroke-width="2"/>
+    </svg>
+  </div>
+
+  <!-- MIMI Score box -->
+  <div class="stage-full">
+    <div class="stage planned">
+      <div class="stage-head">
+        <div class="stage-num"></div>
+        <div class="stage-icon">🎯</div>
+        <div class="stage-title">MIMI Score — Combined Index</div>
+      </div>
+      <div class="score-grid">
+        <div class="score-chip">
+          <span class="sc-label">Sub-index 1</span>
+          <span class="sc-name">IMEI</span>
+          <span style="font-size:0.65rem;opacity:0.8;display:block;margin-top:3px">Infrastructure Management<br>Efficiency Index (13 indicators)</span>
+        </div>
+        <div class="score-chip" style="background:rgba(255,255,255,0.3);border-color:rgba(255,255,255,0.5);">
+          <span class="sc-label">Final Index</span>
+          <span class="sc-name" style="font-size:1.1rem;">MIMI</span>
+          <span style="font-size:0.65rem;opacity:0.8;display:block;margin-top:3px">Municipal Infrastructure<br>Management Index</span>
+        </div>
+        <div class="score-chip">
+          <span class="sc-label">Sub-index 2</span>
+          <span class="sc-name">IMFI</span>
+          <span style="font-size:0.65rem;opacity:0.8;display:block;margin-top:3px">Infrastructure Management<br>Financial Index (12 indicators)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- arrow -->
+  <div class="connector"><div class="connector-arrow">↓</div></div>
+
+  <!-- STAGE 7 + 8 side by side -->
+  <div class="stage-row-2col">
+
+    <!-- STAGE 7 ─ Sensitivity -->
+    <div class="stage complex">
+      <div class="stage-head">
+        <div class="stage-num">7</div>
+        <div class="stage-icon">🔬</div>
+        <div class="stage-title">Stage 7 — Sensitivity Analysis</div>
+        <div class="stage-badge">🟣 COMPLEX</div>
+      </div>
+      <div class="items">
+        <div class="item">
+          <strong>Normalisation sensitivity</strong>
+          <span>Re-run: min-max vs z-score vs percentile<br>Compare resulting municipality rankings</span>
+        </div>
+        <div class="item">
+          <strong>Weight sensitivity</strong>
+          <span>Vary each indicator weight ±20%<br>Check rank stability (Spearman ρ)</span>
+        </div>
+        <div class="item">
+          <strong>Missing data sensitivity</strong>
+          <span>Re-run with different imputation methods<br>Compare outcomes</span>
+        </div>
+        <div class="item">
+          <strong>Monte Carlo (optional)</strong>
+          <span>Randomly vary weights N times<br>Build confidence intervals around rankings</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STAGE 8 ─ Validation -->
+    <div class="stage complex">
+      <div class="stage-head">
+        <div class="stage-num">8</div>
+        <div class="stage-icon">✅</div>
+        <div class="stage-title">Stage 8 — Validation</div>
+        <div class="stage-badge">🟣 COMPLEX</div>
+      </div>
+      <div class="items">
+        <div class="item">
+          <strong>Face validity</strong>
+          <span>Do top-ranked municipalities match<br>known high performers?<br>(Cape Town, eThekwini, Drakenstein…)</span>
+        </div>
+        <div class="item">
+          <strong>Convergent validity</strong>
+          <span>Correlate MIMI with AGSA audit outcomes,<br>DWS Blue/Green Drop assessments,<br>existing composite indices</span>
+        </div>
+        <div class="item">
+          <strong>Temporal consistency</strong>
+          <span>Are scores stable year-on-year<br>for the same municipality?<br>Flag anomalous jumps</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- arrow -->
+  <div class="connector"><div class="connector-arrow">↓</div></div>
+
+  <!-- STAGE 9 ─ Final Output -->
+  <div class="stage-full">
+    <div class="stage planned">
+      <div class="stage-head">
+        <div class="stage-num">9</div>
+        <div class="stage-icon">📊</div>
+        <div class="stage-title">Stage 9 — Final Output</div>
+        <div class="stage-badge">🟠 PLANNED</div>
+      </div>
+      <div class="items" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+        <div class="item">
+          <strong>Rankings table</strong>
+          <span>All municipalities ranked by MIMI<br>per year, with IMEI + IMFI<br>sub-index breakdowns</span>
+        </div>
+        <div class="item">
+          <strong>scores table (DB)</strong>
+          <span>municipality | year<br>IMEI | IMFI | MIMI<br>Stored in mimi_master.db</span>
+        </div>
+        <div class="item">
+          <strong>Dashboard</strong>
+          <span>Python notebook<br>or Streamlit web app<br>Charts, heatmaps, trend lines</span>
+        </div>
+        <div class="item">
+          <strong>PhD chapter output</strong>
+          <span>Publication-ready tables<br>and charts for write-up<br>Export to Excel / PDF</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /pipeline -->
+
+<p class="footnote">
+  MIMI Pipeline &nbsp;·&nbsp; PhD Research, University of Cape Town &nbsp;·&nbsp; Nonjabulo Mbhele &nbsp;·&nbsp; 2 May 2026
+</p>
+
+</body>
+</html>
